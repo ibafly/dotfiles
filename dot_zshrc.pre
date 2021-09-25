@@ -1,0 +1,50 @@
+alias ls="exa -alh --icons"
+alias tree="exa --tree --icons"
+alias cat="bat"
+
+alias ..='cd ..'
+alias ...='cd ../..'
+alias -- -='cd -'
+
+alias vi='nvim'
+alias mv='mv -i'
+alias gk='git clone'
+alias ga='git add'
+alias gc='git commit'
+alias gs='git status'
+alias gr='git remote'
+# list simply
+alias lss='exa -a --icons'
+# r as tldr
+alias r='tldr'
+# dtf as chezmoi
+alias dtf='chezmoi'
+
+
+
+
+
+
+eval "$(starship init zsh)"
+
+export EDITOR=nvim
+
+export PATH=$PATH:/home/iiba/.local/share/gem/ruby/3.0.0/bin:/usr/bin/yarn
+#silver defalt config
+#SILVER=(status:black:white user:yellow:black dir:blue:black git:green:black cmdtime:magenta:black)
+#export SILVER_ICONS=nerd
+#export SILVER_SHELL=$0 # bash, zsh, or fish
+#eval "$(silver init)"
+eval "$(fasd --init auto)"
+
+[ -f ~/.fzf.colors ] && source ~/.fzf.colors
+
+[ -f ~/.fzf.zsh ] && source ~/.fzf.zsh
+
+eval "$(zoxide init zsh)"
+
+# Base16 Shell
+BASE16_SHELL="$HOME/.config/base16-shell/"
+[ -n "$PS1" ] && \
+	[ -s "$BASE16_SHELL/profile_helper.sh" ] && \
+	eval "$("$BASE16_SHELL/profile_helper.sh")"
