@@ -10,9 +10,13 @@ alias vi='nvim'
 alias mv='mv -i'
 alias gk='git clone'
 alias ga='git add'
+alias gb='git branch'
 alias gc='git commit'
+alias gca='git commit -a'
+alias gco='git checkout'
 alias gs='git status'
 alias gr='git remote'
+alias gl='git log'
 # list simply
 alias lss='exa -a --icons'
 # r as tldr
@@ -29,7 +33,7 @@ eval "$(starship init zsh)"
 
 export EDITOR=nvim
 
-export PATH=$PATH:/home/iiba/.local/share/gem/ruby/3.0.0/bin:/usr/bin/yarn
+export PATH=$PATH:/home/iiba/.local/share/gem/ruby/3.0.0/bin:/home/iiba/.yarn/bin
 #silver defalt config
 #SILVER=(status:black:white user:yellow:black dir:blue:black git:green:black cmdtime:magenta:black)
 #export SILVER_ICONS=nerd
