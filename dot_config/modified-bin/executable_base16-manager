@@ -1,0 +1,669 @@
+#!/bin/bash
+
+# Install base16 templates and set themes globally.
+# Source https://github.com/AuditeMarlow/base16-manager
+
+readonly DATA_PATH="${XDG_DATA_HOME:-$HOME/.local/share}/base16-manager"
+
+err() {
+  echo "ERROR: $*" >&2
+}
+
+bug() {
+  echo "A bug occured. Please copy the following message and report the bug here: https://github.com/AuditeMarlow/base16-manager."
+  echo "$*"
+}
+
+usage() {
+  echo "Usage: base16-manager [option]"
+  echo "Options:"
+  echo " set              'base16-theme'         Sets the theme"
+  echo " set-random                              Sets to a random installed theme"
+  echo " install          'username/repository'  Installs a new template"
+  echo " uninstall        'username/repository'  Uninstalls a template"
+  echo " list                                    Lists installed templates"
+  echo " list-support                            Lists supported templates"
+  echo " list-installable                        Lists installable templates"
+  echo " list-themes                             Lists installed themes"
+  echo " update                                  Updates installed templates"
+  echo " clean                                   Cleans up leftovers"
+}
+
+# print short list of posssible commands (set, set-random, install, ...)
+# sed 1,2d	means [d]elete line 1-2
+
+usage_short() {
+  base16-manager | sed 1,2d | cut -s -d ' ' -f 2
+}
+
+# return true, if directory exists, otherwise false
+dir_exists() {
+  local dir=$1
+
+  if [[ -d "$dir" ]]; then
+    true
+  else
+    false
+  fi
+}
+
+# return true, if file exists, otherwise false
+file_exists() {
+  local file=$1
+
+  if [[ -f "$file" ]]; then
+    true
+  else
+    false
+  fi
+}
+
+# CREATE directory $1 if it doesn't already exists.
+check_dir() {
+  local dir=$1
+
+  if ! dir_exists "$dir"; then
+    mkdir "$dir"
+  fi
+}
+
+# move old config to new data directory or create new one
+# if it doesn't already exists
+check_data_dir() {
+  local OLD_CONFIG_PATH="$HOME/.base16-manager"
+
+  if dir_exists "$OLD_CONFIG_PATH"; then
+    cat <<EOT
+Old config data detected!
+-------------------------
+1. Move your base16-manager data to new location
+  mv "${OLD_CONFIG_PATH}" "${DATA_PATH}"
+2. Set your favorite theme again, something like:
+  base16-manager set solarized-dark
+EOT
+    exit 1
+  fi
+
+  dir_exists "$DATA_PATH" || mkdir "$DATA_PATH"
+}
+
+# if the length of $1 is zero, print base16-manager's help text.
+check_arg() {
+  local arg=$1
+
+  if [[ -z "$arg" ]]; then
+    usage
+    exit
+  fi
+}
+
+# check if there is new line at the end of file
+# add it if not
+#
+# Rationale: We often need to append something to config file, but if newline
+# is missing at end of file, our string will be appended to same line as
+# last line in config file causing failure
+check_eof_nl() {
+  local file=$1
+
+  # add newline to eof if it is missing
+  local eof
+  eof=$(tail -c 1 "$file")
+  if  [ -n "$eof" ]; then
+    printf "\\n" >> "$file"
+  fi
+}
+# return true, if OS is mac
+is_mac() {
+  [[ "$(uname)" == "Darwin" ]]
+}
+
+# return true, if OS is linux
+is_linux() {
+  [[ "$(uname)" == "Linux" ]]
+}
+
+# check if there is line in file($1) corresponding to pattern($2)
+# if not, add line($3) to the end of file
+#
+# pattern is matched using extended-regexp
+line_in_file() {
+  local file=$1
+  local pattern=$2
+  local line=$3
+
+  if ! file_exists "$file" || \
+      ! grep -iqE "$pattern" "$file"
+  then
+    check_eof_nl "$file"
+    echo "$line" >> "$file"
+  fi
+}
+
+# install the repo $1, e.g. $1="USER/NAME"
+install() {
+  local template=$1
+  local repository="https://github.com/$template"
+
+  check_data_dir
+  # check_dir "$DATA_PATH"
+
+  if ! git ls-remote --exit-code -h "$repository" > /dev/null; then
+    err "Template repository not found."
+    exit
+  fi
+
+  git clone "$repository" "$DATA_PATH/$template"
+}
+
+# uninstall the repo $1, e.g. $1="USER/NAME"
+uninstall() {
+  local template=$1
+
+  check_dir "$DATA_PATH/$template"
+
+  rm -rf "${DATA_PATH:?}/${template:?}"
+  # rm -rf "$DATA_PATH:?/$template"
+
+  echo "Uninstalled $template."
+}
+
+# print all installed templates
+list() {
+  # iterate over each MAINTAINER and REPOSITORY stored in $DATA_PATH
+  for MAINTAINER in "$DATA_PATH"/*; do
+    for REPOSITORY in "$MAINTAINER"/*; do
+      [[ -e "$REPOSITORY" ]] || break # handle empty $DATA_PATH
+      [[ -d "$REPOSITORY" ]] || break # handle files
+      echo "$(basename -- "$MAINTAINER")/$(basename -- "$REPOSITORY")"
+    done 
+  done 
+}
+
+# print all installed themes
+list_themes() {
+  local sort_option=( "$@" )
+
+  find "$DATA_PATH" -type f -name 'base16-*' | \
+    sed "s/.*\\/base16-//" | \
+    sed "s/\\..*//" | \
+    sort "${sort_option[@]}" | uniq
+}
+
+# print currently supported templates
+list_support() {
+  echo "0xdec/base16-rofi"
+  echo "chriskempson/base16-shell"
+  echo "chriskempson/base16-vim"
+  echo "chriskempson/base16-xresources"
+  echo "khamer/base16-dunst"
+  echo "khamer/base16-termite"
+  echo "nicodebo/base16-fzf"
+  echo "nicodebo/base16-zathura"
+  echo "theova/base16-qutebrowser"
+  echo "rkubosz/base16-sway"
+  echo "aarowill/base16-alacritty"	# wip
+}
+
+# print uninstalled packages which are supported
+list_installable() {
+  local RESULT=""
+  for REPO in $(list_support); do
+    if ! grep -q "$REPO" <<< "$(list)"  ; then
+      if [[ -z $RESULT ]]; then
+        RESULT="$REPO"
+      else
+        local NEWLINE=$'\n'
+        RESULT="$RESULT$NEWLINE$REPO"
+      fi
+    fi
+  done
+  echo "$RESULT"
+}
+
+# update the themes in all templates
+update() {
+  local packages
+  packages=$(list)
+
+  if [[ -z "$packages" ]]; then
+    err "No packages installed."
+    exit
+  fi
+
+  for package in $packages; do
+    cd "$DATA_PATH"/"$package" || exit
+    git pull -f origin master
+  done
+
+  echo "All packages updated."
+}
+
+# remove all empty directories in $DATA_PATH
+clean() {
+  find "$DATA_PATH" -maxdepth 1 -type d -empty -delete
+
+  check_data_dir
+  # check_dir "$DATA_PATH"
+
+  echo "Cleaned up $DATA_PATH."
+}
+
+# set themes for all installed templates
+set_theme() {
+  local theme=$1
+  local packages
+  packages=$(list)
+
+  if [[ -z "$packages" ]]; then
+    err "No packages installed."
+    exit
+  fi
+
+  for package in $packages; do
+    case "$package" in
+      "0xdec/base16-rofi")
+        set_rofi "$package" "$theme"
+        ;;
+      "chriskempson/base16-shell")
+        set_shell "$package" "$theme"
+        ;;
+      "chriskempson/base16-vim")
+        set_vim "$package" "$theme"
+        ;;
+      "chriskempson/base16-xresources")
+        set_xresources "$package" "$theme"
+        ;;
+      "khamer/base16-dunst")
+        set_dunst "$package" "$theme"
+        ;;
+      "nicodebo/base16-fzf")
+        set_fzf "$package" "$theme"
+        ;;
+      "nicodebo/base16-zathura")
+        set_generic "$package" "$theme" "#" ' ' \
+        "$HOME/.config/zathura/zathurarc"
+        ;;
+      "khamer/base16-termite")
+        set_generic "$package" "$theme" "#" "=" "$HOME/.config/termite/config"
+        killall -USR1 termite  # Reload termite configuration in-place.
+        ;;
+      "theova/base16-qutebrowser")
+        QUTEBROWSERCONF="$HOME/.config/qutebrowser/config.py"
+        set_generic "$package" "$theme" "#" "=" "$QUTEBROWSERCONF"
+	echo "config.load_autoconfig()" >> $QUTEBROWSERCONF  # add qute auto-generated config which is customizied via browser UI to config.py
+	qutebrowser ':config-source'  # in terminal to pass reload command to qutebrowser 
+        ;;
+      "aarowill/base16-alacritty")
+	set_by_copy "$package" "$theme" "$HOME/.config/alacritty/colorscheme.yml" "yml"
+  	# nothing to reload, Alacritty reloads when config changes.	
+	;;
+      "rkubosz/base16-sway")	# always put DE at last
+	set_by_copy "$package" "$theme" "$HOME/.config/sway/colorscheme" "config"
+	;;
+      *)
+        err "Package $package is not (yet) supported."
+        ;;
+    esac
+  done
+
+  echo "Set theme to $theme. You may need to restart DE and terminals."
+  	sway reload  # reload sway configuration, reloading sway make termite config in .config/termite/config empty so /etc/sway/config.d/96-enable-termite-theme should be commented out.
+}
+
+# Use template ($1) to set theme ($2).
+# This is done by deleting all lines in user's config ($5) containing the 
+# left-hand side of any assignement (marked by the assignement string $4) in the
+# theme file. All comments directly above the deleted line are also deleted.
+set_generic() {
+  local package=$1
+  local theme=$2
+  local cmnt_string=$3
+  local assign_string=$4
+  local config=$5
+  local config_tmp
+  local file
+  local left
+  local line
+  local number
+
+  local screenshot # show image of themed terminal. from base16-termite/screenshots/ using tiv, package terminal image viewer.
+
+  # get template and handling for inexisting templates
+  # &> redirect STDOUT and STDERR to /dev/null, a system device called BIT BUCKET that accepts output but do nothing to it
+  if ls "$DATA_PATH/$package"/*/"base16-$theme."* &>/dev/null; then
+    #file=$(ls "$DATA_PATH/$package"/*/"base16-$theme."* ) 
+    file=$(ls "$DATA_PATH/$package"/*/"base16-$theme.config"* ) 
+    screenshot="$DATA_PATH/$package"/*/"base16-$theme.jpg"*
+    tiv -h 16 $screenshot  # -h option sets the maxheight
+  elif ls "$DATA_PATH/$package"/*/default/"base16-$theme."* &>/dev/null; then
+    file=$(ls "$DATA_PATH/$package"/*/default/"base16-$theme.config"* ) 
+  else
+    err "$package: theme $theme not found."
+    return 1
+  fi
+
+  if [[ ! -f "$config" ]]; then
+	  mkdir -p "$(dirname "$config")"
+	  cp "$file" "$config"
+	  return
+  fi
+
+  # work with a temporary config copy
+  config_tmp=/tmp/base16_manager_$(basename "$config")
+  cp "$config" "$config_tmp"
+
+  while read -r line; do
+    # get left side of each assignement
+    left=$(echo "$line" | cut -d "$assign_string" -f 1)
+    left=$(echo "$left" | xargs) # remove trailing whitespaces
+    left=$(echo "$left" | sed 's/\//\\\//g') # escape slashes
+
+
+    # if $left found, then
+    # delete all lines ($line) containing $left
+    # delte all comments above $line
+    #if ! [[ -n $left ]]; then
+    if [[ -n $left ]]; then
+      lines=$(grep -Fohn "$left" "$config_tmp"  | cut -d : -f 1)
+
+      for number in $lines; do
+        #sed -i "$number"'s/.*//' "$config_tmp"
+        sed -i.bak "$number"'d' "$config_tmp"
+
+        while  (( number > 1 )) && sed "$(( number - 1 ))"'!d' "$config_tmp" | grep -q "^$cmnt_string"; do
+          #sed -i "$(( number - 1 ))"'s/.*//' "$config_tmp"
+          sed -i.bak "$(( number - 1 ))"'s/.*//' "$config_tmp"
+          number=$((number - 1))
+        done
+      done
+    fi
+
+  done <"$file"
+
+  #remove special strings (e.g. in template headers)
+ # sed -i '/'"^$cmnt_string"'.*[b,B]ase16/d' "$config_tmp"
+ # sed -i '/'"^$cmnt_string"'.*scheme by/d' "$config_tmp"
+ # sed -i '/'"^$cmnt_string"'.*Author:/d' "$config_tmp"
+  sed -i.bak '/'"^$cmnt_string"'.*[b,B]ase16/d' "$config_tmp"
+  sed -i.bak '/'"^$cmnt_string"'.*scheme by/d' "$config_tmp"
+  sed -i.bak '/'"^$cmnt_string"'.*Author:/d' "$config_tmp"
+
+  # remove parts with more than one empty line
+  sed -i.bak '$!N; /^\(.*\)\n\1$/!P; D' "$config_tmp"
+  # remove first line, if it's empty
+  sed -i.bak '1{/^[[:space:]]*$/d}' "$config_tmp"
+
+  # create a backup
+  cp "$config" "$config.bac"
+
+  # append a line break, if last line is not empty.
+  #if ! [[ -z $(tail -1 "$config_tmp") ]]; then
+  if [[ -n $(tail -1 "$config_tmp") ]]; then
+    printf "\\n" >> "$config_tmp"
+  fi
+
+  # append colorscheme
+  cat "$file" >> "$config_tmp"
+
+  # copy temporary file to the right place
+  cp "$config_tmp" "$config"
+  #err "$config"
+
+  #remove temporay files
+  rm "$config_tmp".bak "$config_tmp"
+}
+
+# Use template ($1) to set theme ($2).
+# This is done by copying the theme to the config's ($3) location.
+# If the package provides themes with several endings, you have to specify it ($4).
+set_by_copy() {
+  local package=$1
+  local theme=$2
+  local config=$3
+  local ending=$4
+  local file
+
+  # get template and handling for inexisting templates
+  if ls "$DATA_PATH/$package"/*/"base16-$theme."* &>/dev/null; then
+    file=$(ls "$DATA_PATH/$package"/*/"base16-$theme."*"$ending" ) 
+  else
+    err "$package: theme $theme not found."
+    return 1
+  fi
+
+  # create a backup
+  cp "$config" "$config.bac"
+
+  # copy template to the config location.
+  cp "$file" "$config"
+}
+
+set_dunst() {
+  local package=$1
+  local theme=$2
+  local file="$DATA_PATH/$package/themes/base16-$theme.dunstrc"
+  local config="$HOME/.config/dunst/dunstrc"
+
+  if ! file_exists "$file"; then
+    err "Dunst theme not found."
+  else
+    sed '/^\[base16_low\]$/,/^\s+foreground(.*)$/d' "$config" > /tmp/dunstrc
+    [[ -f "$config.bac" ]] && rm "$config.bac"
+    mv "$config" "$config.bac"
+    cat /tmp/dunstrc "$file" > "$config"
+
+    # Kill dunst to force reload new configuration.
+    [[ ! -z "$(pidof dunst)" ]] && killall dunst
+  fi
+}
+
+set_fzf() {
+  local package=$1
+  local theme=$2
+  local file=""
+  local line="[ -f ~/.fzf.colors ] && source ~/.fzf.colors"
+  # line for bash, zsh, fish but not murex
+  # local line="if { g: ~/.fzf.colors } then { source ~/.fzf.colors }"
+  local configs=".bashrc .zshrc .config/fish/config.fish"
+
+  if command -v fish >/dev/null 2>&1; then
+    file="$DATA_PATH/$package/fish/base16-$theme.fish"
+  else
+    file="$DATA_PATH/$package/bash/base16-$theme.config"
+  fi
+
+  if ! file_exists "$file"; then
+    err "FZF theme not found."
+  else
+    cp "$file" "$HOME/.fzf.colors"
+
+    for config in $configs; do
+      if file_exists "$HOME/$config" && ! grep -Fxq "$line" "$HOME/$config"; then
+        echo "$line" >> "$HOME/$config"
+      fi
+    done
+  fi
+}
+
+set_shell() {
+  local package=$1
+  local theme=$2
+  local file="$DATA_PATH/$package/scripts/base16-$theme.sh"
+  local helper="$DATA_PATH/$package/profile_helper.sh"
+  local fish_dir="$HOME/.config/fish"
+  local fish_config="$fish_dir/config.fish"
+  local fish_string="# Base16 Shell
+  if status --is-interactive
+    eval sh $file
+  end"
+
+  if ! file_exists "$helper"; then
+    err "Shell helper not found."
+  elif ! file_exists "$file"; then
+    err "Shell theme not found."
+  else
+    eval "$($helper)"
+    _base16 "$file"
+
+    if command -v fish >/dev/null 2>&1; then
+      # Make fish theme permanent
+      [[ ! -d "$fish_dir" ]] && mkdir "$fish_dir"
+      [[ ! -f "$fish_config" ]] && touch "$fish_config"
+
+      sed '/^# Base16 Shell$/,/^end$/d' "$fish_config" > /tmp/fish_config
+      [[ -f "$fish_config.bac" ]] && rm "$fish_config.bac"
+      mv "$fish_config" "$fish_config.bac"
+      mv /tmp/fish_config "$fish_config"
+      echo "$fish_string" >> "$fish_config"
+    fi
+  fi
+}
+
+set_vim() {
+  local package=$1
+  local theme=$2
+  local file="$DATA_PATH/$package/colors/base16-$theme.vim"
+  local vim_dirs="$HOME/.vim $HOME/.config/nvim"
+
+  if ! file_exists "$file"; then
+    err "Vim theme not found."
+  else
+    for vim_dir in $vim_dirs; do
+      if dir_exists "$vim_dir"; then
+        echo "colorscheme base16-$theme" > "$vim_dir/colorscheme.vim"
+      fi
+    done
+  fi
+}
+
+# shellcheck disable=SC2120
+set_random() {
+  set_theme "$(list_themes -R | head -n1 | awk "{print $1;}")"
+}
+
+set_rofi() {
+  local package=$1
+  local theme=$2
+
+  # get template and handling for inexisting templates
+  if ls "$DATA_PATH/$package"/*/"base16-$theme."* &>/dev/null; then
+    file=$(ls "$DATA_PATH/$package"/*/"base16-$theme."*"rasi" )
+  else
+    err "$package: theme $theme not found."
+    return 1
+  fi
+
+  # path to rofi config
+  local ROFI_CONFIG="${XDG_CONFIG_HOME:-$HOME/.config}/rofi/config"
+
+  # remove old theme or new rasi style theme from config
+  sed -i -e '/^\! Base16 /d' \
+    -e '/^\! Author:/d' \
+    -e '/^\! base[[:xdigit:]]\{2\}/d' \
+    -e '/^\! Enable the extended coloring options/d' \
+    -e '/^rofi\.color-enabled: true/d' \
+    -e '/^\! Property Name/d' \
+    -e '/^rofi\.color-/d' \
+    -e '/^rofi\.theme/d' \
+    -e '/^! Set the desired separator style/d' \
+    -e '/^rofi.separator-style: solid/d' \
+    -e '/^# Theme set by base16-manager/d' \
+    -e '/^\s*theme:/d' "$ROFI_CONFIG"
+
+  check_eof_nl "$ROFI_CONFIG"
+  printf "# Theme set by base16-manager\\nrofi.theme: %s\\n" "$file" >> "$ROFI_CONFIG"
+}
+
+set_xresources() {
+  local package=$1
+  local theme=$2
+  local xres=$HOME/.Xresources
+  local file="$DATA_PATH/$package/xresources/base16-$theme.Xresources"
+  local xres_d="$HOME/.Xresources.d"
+  local xres_color=".Xresources.d/colors"
+
+  if ! file_exists "$file"; then
+    err "Xresources theme not found."
+  else
+    check_dir "$xres_d"
+    cp "$file" "$HOME/$xres_color"
+
+    if file_exists "$xres"; then
+      # clean $xres and remove all lines containing color definitions
+      sed -i '/^\#ifdef background_opacity/,+4d' "$xres" #ifdef till #endif
+      sed -i '/[B|b]ase[[:xdigit:]]/d' "$xres" # base16
+      sed -i '/^\! Scheme/d' "$xres" # comments
+      sed -i '$!N; /^\(.*\)\n\1$/!P; D' "$xres" #remove newlines
+    fi
+
+    # add new line to include colors to Xresources
+    line_in_file "$xres" \
+                 "^#include\\s+\".*$xres_color\"$" \
+                 "#include \"$xres_color\""
+
+    xrdb -load "$xres" # reload colors
+  fi
+}
+
+main() {
+
+  local option=$1
+  local arg=$2
+
+  check_data_dir
+
+  if [[ -z "$option" ]]; then
+    usage
+    exit
+  fi
+
+  case $option in
+    "install")
+      check_arg "$arg"
+      install "$arg"
+      ;;
+    "uninstall")
+      check_arg "$arg"
+      uninstall "$arg"
+      ;;
+    "list")
+      list
+      ;;
+    "list-themes")
+      list_themes
+      ;;
+    "list-support")
+      list_support
+      ;;
+    "list-installable")
+      list_installable
+      ;;
+    "update")
+      update
+      ;;
+    "set")
+      check_arg "$arg"
+      set_theme "$arg"
+      ;;
+    "clean")
+      clean
+      ;;
+    "set-random")
+      # shellcheck disable=SC2119
+      set_random
+      ;;
+    "usage-short")
+      usage_short
+      ;;
+    *)
+      usage
+      ;;
+  esac
+
+  exit
+}
+
+main "$@"
+
+# vim: ts=2 sw=2 et
