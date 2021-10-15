@@ -1,0 +1,92 @@
+add_newline = false
+
+# format = "$all"
+# Which is equivalent to
+format = """
+$character\
+$cmd_duration\
+$line_break\
+$line_break\
+$username\
+$hostname\
+$shlvl\
+$kubernetes\
+$directory\
+$git_branch\
+$git_commit\
+$git_state\
+$git_status\
+$hg_branch\
+$docker_context\
+$package\
+$cmake\
+$dart\
+$dotnet\
+$elixir\
+$elm\
+$erlang\
+$golang\
+$helm\
+$java\
+$julia\
+$kotlin\
+$nim\
+$nodejs\
+$ocaml\
+$perl\
+$php\
+$purescript\
+$python\
+$ruby\
+$rust\
+$swift\
+$terraform\
+$vagrant\
+$zig\
+$nix_shell\
+$conda\
+$memory_usage\
+$aws\
+$gcloud\
+$openstack\
+$env_var\
+$crystal\
+$custom\
+$lua\
+$jobs\
+$battery\
+$time\
+$status\
+$line_break\
+$line_break\
+[﬌ ](purple)\
+\n"""
+
+[jobs]
+#disabled = true
+
+[cmd_duration]
+#disabled = true
+
+[character]
+#disabled = true
+success_symbol = "[:\\)](bold green)"
+# elvish shell not support error status code, hence error_symbol
+ error_symbol = "[:\\(](bold red)"
+
+[directory]
+#format = """
+#[┌───────────────────>](bold green)
+#[│$path$directory$rust$package](bold green)
+#[└─>](bold red)"""
+#format = "[$path]($style)[$read_only]($read_only_style) "
+format = """
+[](purple)[ $path ]($style)[$read_only]($read_only_style)"""
+#[](purple)[ $path ]($style)[$read_only]($read_only_style)"""
+#[](purple)[ $path ]($style)[$read_only]($read_only_style)"""
+#[](purple)[ $path ]($style)[$read_only]($read_only_style)"""
+#[┌ ](purple)[ $path ]($style)[$read_only]($read_only_style)"""
+#[└─> ](purple)"""
+
+[package]
+disabled = false
