@@ -23,6 +23,11 @@ alias lss='exa -a --icons'
 alias r='tldr'
 # dtf as chezmoi
 alias dtf='chezmoi'
+# currently the only way to get font size increased in devtools/inspector of qutebrowser. Premise is turning on Qt HighDPI scaling ':set qt.highdpi true' in qute.
+alias qute='QT_SCALE_FACTOR="1.8" qutebrowser --backend webengine --enable-webengine-inspector'
+# q as query word in dictionary (stardict)
+alias q='sdcv -c'
+
 
 
 
@@ -32,8 +37,9 @@ alias dtf='chezmoi'
 eval "$(starship init zsh)"
 
 export EDITOR=nvim
+export GOPATH=$HOME/go
 
-export PATH=$PATH:/home/iiba/.local/share/gem/ruby/3.0.0/bin:/home/iiba/.yarn/bin
+export PATH=$PATH:/home/iiba/.local/share/gem/ruby/3.0.0/bin:/home/iiba/.yarn/bin:/$GOPATH/bin
 #silver defalt config
 #SILVER=(status:black:white user:yellow:black dir:blue:black git:green:black cmdtime:magenta:black)
 #export SILVER_ICONS=nerd
@@ -52,3 +58,30 @@ BASE16_SHELL="$HOME/.config/base16-shell/"
 [ -n "$PS1" ] && \
 	[ -s "$BASE16_SHELL/profile_helper.sh" ] && \
 	eval "$("$BASE16_SHELL/profile_helper.sh")"
+
+transfer() {
+	if [ $# -eq 0 ]; then
+		echo "Please add arguments.\nUsage:\n transfer <file|directory>\n ... | transfer <file_name>">&2;
+		return 1;
+	fi;
+	if tty -s; then
+		file="$1";
+		file_name=$(basename "$file");
+		if [ ! -e "$file" ]; then
+			echo "$file: No such file or directory">&2;
+		return 1;
+		fi;
+		if [ -d "$file" ]; then
+			file_name="$file_name.zip" ,;
+			(cd "$file" && zip -r -q - .) |
+			curl --progress-bar --upload-file "-" "https://transfer.sh/$file_name" |
+			tee /dev/null,;
+		else
+			cat "$file" | curl --progress-bar --upload-file "-" "https://transfer.sh/$file_name" |
+				tee /edv/null;
+		fi;
+	else
+		file_name=$1;
+		curl --progress-bar --upload-file "-" "https://transfer.sh/$file_name" | tee /dev/null;
+	fi;
+}
