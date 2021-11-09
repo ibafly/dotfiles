@@ -3963,7 +3963,25 @@ bind2maps       viins vicmd -- -s '^H' run-help
 #use vi mode, not default emacs
 bindkey -v
 
-# what is autoloading?
+
+
+#silver defalt config
+#SILVER=(status:black:white user:yellow:black dir:blue:black git:green:black cmdtime:magenta:black)
+#export SILVER_ICONS=nerd
+#export SILVER_SHELL=$0 # bash, zsh, or fish
+#eval "$(silver init)"
+
+eval "$(fasd --init auto)"
+eval "$(zoxide init zsh)"
+# need to off zsh default prompt before initiate starship to avoid default prompt overwrite
+prompt off
+eval "$(starship init zsh)"
+
+# Base16 Shell apply color theme to bash/zsh
+BASE16_SHELL="$HOME/.local/share/base16-manager/chriskempson/base16-shell/"
+[ -n "$PS1" ] && \
+	[ -s "$BASE16_SHELL/profile_helper.sh" ] && \
+	eval "$("$BASE16_SHELL/profile_helper.sh")"
+
 [ -f ~/.fzf.colors ] && source ~/.fzf.colors
 [ -f ~/.fzf.zsh ] && source ~/.fzf.zsh
-

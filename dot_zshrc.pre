@@ -1,6 +1,19 @@
+# vital env vars, alias and some custom functions here in .zshrc.pre, maybe something will be added if they require to run before zsh init
+# zsh settings, specific env vars, third party eval init...go to .zshrc, after grml
+
+
+export EDITOR=nvim
+export GOPATH=$HOME/go
+
+export PATH=$PATH:/home/iiba/.local/share/gem/ruby/3.0.0/bin:/home/iiba/.yarn/bin:/$GOPATH/bin
+
+
 alias ls="exa -alh --icons"
 alias tree="exa --tree --icons"
 alias cat="bat"
+alias ols="/usr/bin/ls"
+alias otree="/usr/bin/tree"
+alias ocat="/usr/bin/cat"
 
 alias ..='cd ..'
 alias ...='cd ../..'
@@ -27,38 +40,13 @@ alias dtf='chezmoi'
 alias qute='QT_SCALE_FACTOR="1.8" qutebrowser --backend webengine --enable-webengine-inspector'
 # q as query word in dictionary (stardict)
 alias q='sdcv -c'
+# rcv as receive, see receive() below
+alias rcv='receive'
 
 
 
 
-
-
-
-eval "$(starship init zsh)"
-
-export EDITOR=nvim
-export GOPATH=$HOME/go
-
-export PATH=$PATH:/home/iiba/.local/share/gem/ruby/3.0.0/bin:/home/iiba/.yarn/bin:/$GOPATH/bin
-#silver defalt config
-#SILVER=(status:black:white user:yellow:black dir:blue:black git:green:black cmdtime:magenta:black)
-#export SILVER_ICONS=nerd
-#export SILVER_SHELL=$0 # bash, zsh, or fish
-#eval "$(silver init)"
-eval "$(fasd --init auto)"
-
-[ -f ~/.fzf.colors ] && source ~/.fzf.colors
-
-[ -f ~/.fzf.zsh ] && source ~/.fzf.zsh
-
-eval "$(zoxide init zsh)"
-
-# Base16 Shell
-BASE16_SHELL="$HOME/.local/share/base16-manager/chriskempson/base16-shell/"
-[ -n "$PS1" ] && \
-	[ -s "$BASE16_SHELL/profile_helper.sh" ] && \
-	eval "$("$BASE16_SHELL/profile_helper.sh")"
-
+# fn to transfer and receive file through transfer.sh
 transfer() {
 	if [ $# -eq 0 ]; then
 		echo "Please add arguments.\nUsage:\n transfer <file|directory>\n ... | transfer <file_name>">&2;
@@ -83,5 +71,12 @@ transfer() {
 	else
 		file_name=$1;
 		curl --progress-bar --upload-file "-" "https://transfer.sh/$file_name" | tee /dev/null;
+	fi;
+}
+
+receive() {
+	if [ $# -eq 0 ]; then
+		echo "Please add arguments.\nUsage:\n receive|rcv <path_token>[/|\s]<file_name>\n ... | receive a1B2c3 myFile\n ... | rcv a1B2c3/myFile">&2;
+		return 1;
 	fi;
 }
