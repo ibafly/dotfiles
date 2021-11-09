@@ -21,7 +21,8 @@ set $down j
 set $up k
 set $right l
 # Your preferred terminal emulator
-set $term alacritty 
+#set $term 'LIBGL_ALWAYS_SOFTWARE=1 alacritty'
+set $term 'alacritty'
 
 # Your preferred application launcher
 # Note: pass the final command to swaymsg so that the resulting window can be opened
@@ -31,15 +32,24 @@ set $term alacritty
 # for_window [class="URxvt" instance="launcher"] floating enable, border pixel 1, sticky enable
 # set $menu exec urxvt -geometry 100x18 -name launcher -e env TERMINAL_COMMAND="termite -e" /usr/bin/sway-launcher-desktop
 
-for_window [title="sway-launcher-desktop"] floating enable, sticky enable, resize set 30 ppt 60 ppt, border pixel 2
 #set $menu $term --exec sway-launcher-desktop
 #set $menu $term -e sway-launcher-desktop | xargs swaymsg exec --
 #set $menu "termite -c /etc/xdg/termite/config --exec=sway-launcher-desktop | xargs swaymsg exec"
 #set $menu /usr/bin/wofi --show run --exec-search --prompt "Run Command" --term $term | xargs swaymsg exec --
+#set $menu /usr/bin/yofi | yofi | xargs swaymsg exec --
 
-set $launcher sway-launcher-desktop | xargs swaymsg exec
 
-# set $menu /usr/bin/yofi | yofi | xargs swaymsg exec --
+# if title has the word in it, the window style will apply. title="launcher" and title="desktop" both matches the window currently showing sway-launcher-desktop as part of the title. Note that different terminal may have different option name for setting title: termite --name rename-launcher | alacritty -t rename-launcher
+for_window [title="launcher"] floating enable, sticky enable, resize set 30 ppt 60 ppt, border pixel 2
+
+# Start your launcher
+bindsym $mod+d exec $term' -t launcher -e sway-launcher-desktop'
+
+# all work!
+#2#bindsym $mod+p exec 'env LIBGL_ALWAYS_SOFTWARE=1 alacritty -t launcher -e '"sh -c \'$launcher\'"
+#3#bindsym $mod+p exec 'alacritty -t launcher -e '"sh -c \'$launcher\'"
+#4#set $launcher sway-launcher-desktop | xargs swaymsg exec
+###bindsym $mod+d exec $term' -t launcher -e '"sh -c \'$launcher\'"
 
 ### Output configuration
 #
@@ -56,9 +66,10 @@ set $launcher sway-launcher-desktop | xargs swaymsg exec
 
 # output HDMI-A-1 resolution 1280x720 position 1280,0 transform 0 bg /usr/share/file/Synthwave-lightgrid-landscape-2.jpg fill #000000
 
-output HDMI-A-1 mode --custom 1920x1080@50.000Hz pos 1920 0 transform 90 bg /usr/share/file/Synthwave-lightgrid-landscape-2.jpg fill #000000
+#output HDMI-A-1 mode --custom 1920x1080@50.000Hz pos 1920 0 transform 90 bg /usr/share/file/Synthwave-lightgrid-landscape-2.jpg fill #000000
+output HDMI-A-1 mode --custom 1920x1080@60.000Hz pos 1920 0 transform 90 bg /usr/share/backgrounds/sway/Sway_Wallpaper_Blue_1920x1080.png fill #000000
 
-output "Toshiba America Info Systems Inc Hisense Q5 0x00008800" mode --custom 1280x720 pos 1280 0 transform 0 bg /usr/share/file/Synthwave-lightgrid-landscape-2.jpg fill #000000
+#output "Toshiba America Info Systems Inc Hisense Q5 0x00008800" mode --custom 1280x720 pos 1280 0 transform 0 bg /usr/share/file/Synthwave-lightgrid-landscape-2.jpg fill #000000
 
 #output HDMI-A-1 mode --custom 1280x720@60Hz pos 1280 0 transform 270 bg /usr/share/file/Synthwave-lightgrid-landscape-2.jpg fill #000000
 
@@ -87,7 +98,7 @@ output HDMI-A-2 mode 1024x768@60Hz pos 1024,0 transform 0 bg /usr/share/backgrou
 
 for_window [title="screensaver"] floating enable, sticky enable
 
-set $sunclock 'termite \
+set $sunclock $term' \
 			-t screensaver \
 			-e "wlr-sunclock \
 				--margins "0,0,0,0" \
@@ -97,9 +108,9 @@ set $sunclock 'termite \
 				--border-width 0"'
 
 exec swayidle -w \
-timeout 600 $sunclock \
-timeout 100 'swaylock -f -c 00000099' \
-timeout 600 'swaymsg "output * dpms off"' resume 'swaymsg "output * dpms on"' \
+timeout 3000 $sunclock \
+timeout 1000 'swaylock -f -c 00000099' \
+timeout 6000 'swaymsg "output * dpms off"' resume 'swaymsg "output * dpms on"' \
 before-sleep 'swaylock -f -c 00000099' \
 unlock 'swaymsg [title="screensaver] kill'
 
@@ -136,8 +147,10 @@ exec_always fcitx5 -d --replace
     # Start a terminal
 # for glsl capabilities, we need LIBGL_ALWAYS_SOFTWARE set to 1 to start term Alacritty
 # https://github.com/alacritty/alacritty/issues/128#issuecomment-875489601
-    bindsym $mod+Return exec LIBGL_ALWAYS_SOFTWARE=1 $term -e murex
-    bindsym $mod+t exec LIBGL_ALWAYS_SOFTWARE=1 $term -e zsh
+    bindsym $mod+Return exec $term' -e murex'
+#bindsym $mod+t exec LIBGL_ALWAYS_SOFTWARE=1 $term -e zsh
+#bindsym $mod+t exec $term' -e zsh'
+    bindsym $mod+t exec $term
 #    bindsym $mod+t exec $term --exec=/usr/bin/osh
 
     #go idle
@@ -150,16 +163,13 @@ exec_always fcitx5 -d --replace
 #				--layer bottom\
 #				--anchors tblr\
 #				--border-width 0"' \
-bindsym $mod+m exec swayidle timeout 10 $sunclock \
-#timeout 10 'swaylock -f -c 000000cc'
+bindsym $mod+m exec swayidle timeout 1000 $sunclock \
+#timeout 1000 'swaylock -f -c 000000cc'
 
 
     # Kill focused window
     bindsym $mod+Shift+q kill
 
-    # Start your launcher
-    #bindsym $mod+d exec $menu
-    bindsym $mod+d exec termite --name launcher -e "sh -c \'$launcher\'"
 
     # Drag floating windows by holding down $mod and left mouse button.
     # Resize them with right mouse button + $mod.
