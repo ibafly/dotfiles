@@ -1,0 +1,16 @@
+[Desktop Entry]
+Version=1.0
+#StartupWMClass=qutebrowser
+GenericName=Web Browser
+Name=devtools-qutebrowser
+Comment=A keyboard-driven, vim-like browser based on PyQt5 with BIG-UI devtools.
+Icon=qutebrowser
+Type=Application
+Categories=Network;WebBrowser;
+Exec=QT_SCALE_FACTOR="1.8" qutebrowser --backend webengine --enable-webengine-inspector -- %u
+Terminal=false
+StartupNotify=true
+MimeType=text/html;text/xml;application/xhtml+xml;application/xml;application/rdf+xml;image/gif;image/jpeg;image/png;x-scheme-handler/http;x-scheme-handler/https;x-scheme-handler/qute;
+Keywords=Browser
+Actions=new-window;preferences;
+
