@@ -76,7 +76,37 @@ transfer() {
 
 receive() {
 	if [ $# -eq 0 ]; then
-		echo "Please add arguments.\nUsage:\n receive|rcv <path_token>[/|\s]<file_name>\n ... | receive a1B2c3 myFile\n ... | rcv a1B2c3/myFile">&2;
+		echo "Please add arguments.\nUsage:\n receive|rcv <path_token>[/|\s]<file_name> [other_cURL_optins]\n ... | receive xxxxxx myFile\n ... | rcv xxxxxx/myFile\n ... | rcv xxxxxx/myFile -o myFileRenamed">&2;
 		return 1;
+	fi;
+
+	if [[ $1 == */* ]]; then
+		path_token=$(cut -d'/' -f1 <(echo "$1"));
+		file_name=$(cut -d'/' -f2 <(echo "$1"));
+		if [ $# -eq 1 ]; then
+			other_args="-o$file_name";
+		else
+			other_args="${@:2}";
+		fi
+	elif [ $# -eq 1 ]; then
+		echo "Please add valid arguments.\nUsage:\n receive|rcv <path_token>[/|\s]<file_name> [other_cURL_optins]\n ... | receive xxxxxx myFile\n ... | rcv xxxxxx/myFile\n ... | rcv xxxxxx/myFile -o myFileRenamed">&2;
+		return 1;
+	elif [ $# -eq 2 ]; then
+		path_token="$1";
+		file_name="$2";
+		# in the condition of  rcv xxxxxx myFile, cURL output file name should be same as file_name in link
+		other_args="-o$file_name";
+	else
+		path_token="$1";
+		file_name="$2";
+		other_args="${@:3}";
+	fi;
+
+	if tty -s; then
+		# use $(echo $string_with_spaces) to separate args
+		curl --progress-bar $(echo $other_args) "https://transfer.sh/$path_token/$file_name"
+		if [ $? -ne 0 ]; then
+			echo "Please add valid arguments.\nUsage:\n receive|rcv <path_token>[/|\s]<file_name> [other_cURL_optins]\n ... | receive xxxxxx myFile\n ... | rcv xxxxxx/myFile\n ... | rcv xxxxxx/myFile -o myFileRenamed">&2;
+		fi
 	fi;
 }
